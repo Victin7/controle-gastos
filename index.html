@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Finanças Pro · Controle Mensal</title>
+    <!-- Chart.js & Font Awesome -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- SheetJS para exportar Excel -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        body {
+            background: #f5f7fb;
+            color: #1e293b;
+            padding: 20px;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        body.dark {
+            background: #0b0f19;
+            color: #e2e8f0;
+        }
+
+        .app-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            font-weight: 600;
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .theme-toggle {
+            background: white;
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            font-size: 1.3rem;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+            transition: 0.2s;
+            color: #1e293b;
+        }
+        body.dark .theme-toggle {
+            background: #1e293b;
+            color: #facc15;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        /* Cards de resumo */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px 18px;
+            border-radius: 24px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.02);
+            border: 1px solid rgba(0,0,0,0.03);
+            transition: all 0.2s;
+        }
+        body.dark .card {
+            background: #1e293b;
+            border-color: #334155;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+
+        .card-label {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+
+        .card-value {
+            font-size: 2.1rem;
+            font-weight: 700;
+        }
+
+        .positive { color: #10b981; }
+        .negative { color: #ef4444; }
+
+        /* Layout principal: duas colunas */
+        .dashboard-main {
+            display: grid;
+            grid-template-columns: 1.1fr 1.9fr;
+            gap: 24px;
+            margin-bottom: 30px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 28px;
+            padding: 22px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.02);
+            border: 1px solid rgba(0,0,0,0.03);
+        }
+        body.dark .panel {
+            background: #1e293b;
+            border-color: #334155;
+        }
+
+        .panel-title {
+            font-weight: 600;
+            font-size: 1.3rem;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Formulário */
+        .form-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: #64748b;
+        }
+        body.dark label { color: #94a3b8; }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 18px;
+            font-size: 1rem;
+            background: #fafbfc;
+            transition: 0.2s;
+        }
+        body.dark input, body.dark select, body.dark textarea {
+            background: #0f172a;
+            border-color: #334155;
+            color: #f1f5f9;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .row-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 100%;
+            transition: 0.2s;
+            box-shadow: 0 6px 14px rgba(59,130,246,0.2);
+        }
+        .btn:hover { background: #2563eb; }
+        .btn-outline {
+            background: transparent;
+            border: 1.5px solid #cbd5e1;
+            color: #1e293b;
+            box-shadow: none;
+        }
+        body.dark .btn-outline { color: #e2e8f0; border-color: #475569; }
+
+        /* Gráfico */
+        .chart-container {
+            margin-top: 15px;
+            height: 220px;
+        }
+
+        /* Resumo inteligente + alerta */
+        .insight-box {
+            background: #f8fafc;
+            border-radius: 20px;
+            padding: 16px;
+            margin: 18px 0;
+            border-left: 6px solid #3b82f6;
+        }
+        body.dark .insight-box { background: #0f172a; }
+
+        .alert-warning {
+            background: #fff7ed;
+            border-left: 6px solid #f97316;
+            padding: 14px 16px;
+            border-radius: 18px;
+            margin-bottom: 16px;
+            color: #7c2d12;
+        }
+        body.dark .alert-warning { background: #2d1b0e; color: #fdba74; }
+
+        /* Lista de histórico */
+        .history-list {
+            max-height: 380px;
+            overflow-y: auto;
+            margin-top: 12px;
+        }
+        .history-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 0;
+            border-bottom: 1px solid #eef2f6;
+        }
+        body.dark .history-item { border-bottom-color: #334155; }
+        .history-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .history-cat {
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+        .history-desc {
+            font-weight: 500;
+        }
+        .history-value {
+            font-weight: 700;
+        }
+        .history-actions i {
+            margin-left: 12px;
+            color: #94a3b8;
+            cursor: pointer;
+        }
+        .history-actions i:hover { color: #ef4444; }
+
+        .meta-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        /* Exportar / rodapé */
+        .export-bar {
+            display: flex;
+            gap: 14px;
+            margin-top: 30px;
+            justify-content: flex-end;
+        }
+
+        @media (max-width: 700px) {
+            .cards-grid { grid-template-columns: 1fr 1fr; }
+            .dashboard-main { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <!-- Cabeçalho -->
+    <div class="header">
+        <h1><i class="fas fa-chart-pie" style="color:#3b82f6;"></i> Finanças Pro</h1>
+        <button class="theme-toggle" id="themeToggle"><i class="fas fa-moon"></i></button>
+    </div>
+
+    <!-- Cards de resumo -->
+    <div class="cards-grid">
+        <div class="card">
+            <div class="card-label"><i class="fas fa-wallet"></i> Saldo atual</div>
+            <div class="card-value" id="saldoAtual">R$ 0,00</div>
+        </div>
+        <div class="card">
+            <div class="card-label"><i class="fas fa-arrow-up"></i> Entradas</div>
+            <div class="card-value positive" id="totalEntradas">R$ 0,00</div>
+        </div>
+        <div class="card">
+            <div class="card-label"><i class="fas fa-arrow-down"></i> Saídas</div>
+            <div class="card-value negative" id="totalSaidas">R$ 0,00</div>
+        </div>
+        <div class="card">
+            <div class="card-label"><i class="fas fa-bullseye"></i> Meta economia</div>
+            <div class="card-value" id="metaProgresso">R$ 0</div>
+        </div>
+    </div>
+
+    <!-- Conteúdo principal -->
+    <div class="dashboard-main">
+        <!-- Coluna esquerda: Adicionar + resumo inteligente -->
+        <div>
+            <div class="panel">
+                <div class="panel-title"><i class="fas fa-plus-circle"></i> Nova movimentação</div>
+                <div class="form-group">
+                    <label>Tipo</label>
+                    <select id="tipo">
+                        <option value="entrada">💰 Entrada</option>
+                        <option value="saida">📤 Saída</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Valor (R$)</label>
+                    <input type="number" id="valor" step="0.01" min="0.01" placeholder="0,00">
+                </div>
+                <div class="form-group">
+                    <label>Categoria</label>
+                    <select id="categoria">
+                        <option>Alimentação</option><option>Transporte</option><option>Moradia</option>
+                        <option>Lazer</option><option>Contas</option><option>Compras</option><option>Outros</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Descrição</label>
+                    <input type="text" id="descricao" placeholder="ex: janta, Shopee, salário">
+                </div>
+                <div class="form-group">
+                    <label>Data</label>
+                    <input type="date" id="data">
+                </div>
+                <button class="btn" id="btnSalvar"><i class="fas fa-save"></i> Salvar movimentação</button>
+                
+                <!-- Meta de economia -->
+                <div style="margin-top: 24px;">
+                    <label><i class="fas fa-flag-checkered"></i> Meta de economia mensal</label>
+                    <div class="meta-section">
+                        <input type="number" id="metaInput" placeholder="R$ 500" style="width:60%">
+                        <button class="btn-outline" id="definirMetaBtn" style="width:40%">Definir</button>
+                    </div>
+                    <small id="metaStatus"></small>
+                </div>
+            </div>
+            
+            <!-- Alertas + Resumo inteligente -->
+            <div class="panel" style="margin-top: 20px;">
+                <div class="panel-title"><i class="fas fa-lightbulb"></i> Resumo inteligente</div>
+                <div id="alertaContainer"></div>
+                <div id="insightsContainer" class="insight-box">
+                    Carregando análise...
+                </div>
+                <div style="margin-top: 10px;">
+                    <label><i class="fas fa-exclamation-triangle"></i> Limite de gastos (alerta)</label>
+                    <div style="display:flex; gap:10px; margin-top:8px;">
+                        <input type="number" id="limiteGasto" placeholder="R$ 2000" style="width:70%">
+                        <button id="setLimiteBtn" style="width:30%" class="btn-outline">Salvar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coluna direita: Gráfico + Histórico -->
+        <div class="panel">
+            <div class="panel-title"><i class="fas fa-chart-bar"></i> Onde foi gasto (saídas)</div>
+            <div class="chart-container">
+                <canvas id="graficoCategorias"></canvas>
+            </div>
+            <div style="margin-top: 20px;">
+                <div class="panel-title"><i class="fas fa-history"></i> Histórico do mês</div>
+                <div class="history-list" id="historyList"></div>
+            </div>
+            <div class="export-bar">
+                <button class="btn-outline" id="exportPdfBtn"><i class="fas fa-file-pdf"></i> PDF</button>
+                <button class="btn-outline" id="exportExcelBtn"><i class="fas fa-file-excel"></i> Excel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function(){
+        "use strict";
+
+        // ---------- ESTADO ----------
+        let transacoes = [];
+        let metaEconomia = 0;
+        let limiteGastos = Infinity;
+        let graficoInstance = null;
+
+        // Elementos DOM
+        const saldoEl = document.getElementById('saldoAtual');
+        const entradasEl = document.getElementById('totalEntradas');
+        const saidasEl = document.getElementById('totalSaidas');
+        const metaProgressoEl = document.getElementById('metaProgresso');
+        const historyList = document.getElementById('historyList');
+        const insightsContainer = document.getElementById('insightsContainer');
+        const alertaContainer = document.getElementById('alertaContainer');
+        const tipoSelect = document.getElementById('tipo');
+        const valorInput = document.getElementById('valor');
+        const categoriaSelect = document.getElementById('categoria');
+        const descricaoInput = document.getElementById('descricao');
+        const dataInput = document.getElementById('data');
+        const btnSalvar = document.getElementById('btnSalvar');
+        const metaInput = document.getElementById('metaInput');
+        const definirMetaBtn = document.getElementById('definirMetaBtn');
+        const metaStatus = document.getElementById('metaStatus');
+        const limiteGastoInput = document.getElementById('limiteGasto');
+        const setLimiteBtn = document.getElementById('setLimiteBtn');
+        const themeToggle = document.getElementById('themeToggle');
+
+        // Data atual padrão
+        const hoje = new Date().toISOString().slice(0,10);
+        dataInput.value = hoje;
+
+        // ---------- UTILITÁRIOS ----------
+        function formatarMoeda(valor) {
+            return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        function salvarNoStorage() {
+            localStorage.setItem('financas_pro_transacoes', JSON.stringify(transacoes));
+            localStorage.setItem('financas_pro_meta', metaEconomia);
+            localStorage.setItem('financas_pro_limite', limiteGastos === Infinity ? '' : limiteGastos);
+        }
+
+        function carregarStorage() {
+            const dados = localStorage.getItem('financas_pro_transacoes');
+            if (dados) {
+                try { transacoes = JSON.parse(dados); } catch(e){ transacoes = []; }
+            } else {
+                // Dados exemplo
+                transacoes = [
+                    { id: '1', tipo: 'entrada', valor: 3500, categoria: 'Outros', descricao: 'Salário', data: hoje },
+                    { id: '2', tipo: 'saida', valor: 120, categoria: 'Alimentação', descricao: 'Mercado', data: hoje },
+                    { id: '3', tipo: 'saida', valor: 80, categoria: 'Transporte', descricao: 'Uber', data: hoje },
+                    { id: '4', tipo: 'saida', valor: 200, categoria: 'Lazer', descricao: 'Cinema', data: hoje },
+                ];
+            }
+            metaEconomia = parseFloat(localStorage.getItem('financas_pro_meta')) || 500;
+            const lim = localStorage.getItem('financas_pro_limite');
+            limiteGastos = lim ? parseFloat(lim) : Infinity;
+            metaInput.value = metaEconomia || '';
+            limiteGastoInput.value = limiteGastos !== Infinity ? limiteGastos : '';
+        }
+
+        // ---------- CÁLCULOS ----------
+        function calcularTotais() {
+            let totalEntradas = 0, totalSaidas = 0;
+            transacoes.forEach(t => {
+                if (t.tipo === 'entrada') totalEntradas += t.valor;
+                else totalSaidas += t.valor;
+            });
+            const saldo = totalEntradas - totalSaidas;
+            return { totalEntradas, totalSaidas, saldo };
+        }
+
+        function atualizarCards() {
+            const { totalEntradas, totalSaidas, saldo } = calcularTotais();
+            entradasEl.textContent = formatarMoeda(totalEntradas);
+            saidasEl.textContent = formatarMoeda(totalSaidas);
+            saldoEl.textContent = formatarMoeda(saldo);
+            
+            const faltaMeta = Math.max(metaEconomia - saldo, 0);
+            metaProgressoEl.textContent = formatarMoeda(saldo);
+            if (metaEconomia > 0) {
+                const percent = Math.min((saldo / metaEconomia)*100, 100).toFixed(0);
+                metaStatus.textContent = `💰 ${percent}% da meta · falta ${formatarMoeda(faltaMeta)}`;
+            } else {
+                metaStatus.textContent = `Defina uma meta de economia`;
+            }
+        }
+
+        // ---------- GRÁFICO (apenas saídas) ----------
+        function atualizarGrafico() {
+            const saidas = transacoes.filter(t => t.tipo === 'saida');
+            const categoriasMap = {};
+            saidas.forEach(s => { categoriasMap[s.categoria] = (categoriasMap[s.categoria] || 0) + s.valor; });
+            const labels = Object.keys(categoriasMap);
+            const valores = Object.values(categoriasMap);
+            
+            const ctx = document.getElementById('graficoCategorias').getContext('2d');
+            if (graficoInstance) graficoInstance.destroy();
+            
+            if (labels.length === 0) {
+                // gráfico vazio
+                graficoInstance = new Chart(ctx, { type: 'doughnut', data: { labels: ['Sem gastos'], datasets: [{ data: [1], backgroundColor: ['#cbd5e1'] }] } });
+                return;
+            }
+            graficoInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: valores,
+                        backgroundColor: ['#3b82f6','#f97316','#10b981','#8b5cf6','#ec4899','#facc15','#94a3b8'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        // ---------- HISTÓRICO ----------
+        function renderHistorico() {
+            const ordenado = [...transacoes].sort((a,b)=> (a.data < b.data ? 1 : -1));
+            if (ordenado.length === 0) {
+                historyList.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8;">Nenhuma movimentação</div>';
+                return;
+            }
+            historyList.innerHTML = ordenado.map(t => `
+                <div class="history-item">
+                    <div style="display:flex; gap:12px; align-items:center;">
+                        <i class="fas fa-${t.tipo==='entrada'?'arrow-up text-green':'arrow-down text-red'}" style="color:${t.tipo==='entrada'?'#10b981':'#ef4444'}"></i>
+                        <div class="history-info">
+                            <span class="history-desc">${t.descricao || 'Sem descrição'}</span>
+                            <span class="history-cat">${t.categoria} · ${new Date(t.data+'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center;">
+                        <span class="history-value" style="color:${t.tipo==='entrada'?'#10b981':'#ef4444'}">${t.tipo==='entrada'?'+':'-'} ${formatarMoeda(t.valor)}</span>
+                        <div class="history-actions">
+                            <i class="fas fa-trash-alt" data-id="${t.id}" title="Excluir"></i>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            document.querySelectorAll('.fa-trash-alt').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.target.dataset.id;
+                    transacoes = transacoes.filter(tx => tx.id !== id);
+                    salvarNoStorage();
+                    atualizarTudo();
+                });
+            });
+        }
+
+        // ---------- INSIGHTS E ALERTAS ----------
+        function gerarInsights() {
+            const { totalSaidas, saldo } = calcularTotais();
+            const saidas = transacoes.filter(t => t.tipo === 'saida');
+            
+            // Categoria mais gasta
+            const catMap = {};
+            let maiorGasto = 0, maiorValorUnico = 0, maiorDesc = '';
+            saidas.forEach(s => {
+                catMap[s.categoria] = (catMap[s.categoria] || 0) + s.valor;
+                if (s.valor > maiorValorUnico) { maiorValorUnico = s.valor; maiorDesc = s.descricao; }
+            });
+            let catTop = Object.entries(catMap).sort((a,b)=> b[1]-a[1])[0];
+            const catNome = catTop ? catTop[0] : '—';
+            
+            const diasComGasto = new Set(saidas.map(s=> s.data)).size || 1;
+            const mediaDiaria = totalSaidas / diasComGasto;
+            
+            let alertasHtml = '';
+            if (limiteGastos !== Infinity && totalSaidas > limiteGastos) {
+                alertasHtml += `<div class="alert-warning"><i class="fas fa-exclamation-circle"></i> Atenção: você ultrapassou o limite de gastos (${formatarMoeda(limiteGastos)})</div>`;
+            }
+            if (saldo < 100 && saldo >=0) {
+                alertasHtml += `<div class="alert-warning"><i class="fas fa-exclamation-triangle"></i> Saldo baixo: ${formatarMoeda(saldo)}</div>`;
+            }
+            if (metaEconomia > 0) {
+                const percentSaldoMeta = (saldo / metaEconomia)*100;
+                if (percentSaldoMeta < 30 && saldo>0) {
+                    alertasHtml += `<div class="alert-warning">⚠️ Você está com apenas ${percentSaldoMeta.toFixed(0)}% da meta de economia.</div>`;
+                }
+            }
+            if (totalSaidas > 0 && (totalSaidas / (calcularTotais().totalEntradas||1)) > 0.8) {
+                alertasHtml += `<div class="alert-warning">📉 Você já gastou 80% ou mais das entradas. Reduza gastos em lazer/compras.</div>`;
+            }
+            alertaContainer.innerHTML = alertasHtml || '<div style="padding:8px 0;color:#64748b;">✅ Tudo sob controle</div>';
+            
+            insightsContainer.innerHTML = `
+                <strong>📊 Você gastou mais com:</strong> ${catNome} <br>
+                <strong>💸 Maior gasto único:</strong> ${formatarMoeda(maiorValorUnico)} (${maiorDesc})<br>
+                <strong>📆 Média de gasto diário:</strong> ${formatarMoeda(mediaDiaria)}<br>
+                ${metaEconomia>0? `🎯 Meta: ${formatarMoeda(metaEconomia)} · saldo: ${formatarMoeda(saldo)}`:''}
+            `;
+        }
+
+        function atualizarTudo() {
+            atualizarCards();
+            renderHistorico();
+            atualizarGrafico();
+            gerarInsights();
+        }
+
+        // ---------- ADICIONAR TRANSAÇÃO ----------
+        function adicionarTransacao() {
+            const valor = parseFloat(valorInput.value);
+            if (isNaN(valor) || valor <= 0) { alert('Valor inválido'); return; }
+            const tipo = tipoSelect.value;
+            const categoria = categoriaSelect.value;
+            const descricao = descricaoInput.value.trim() || (tipo==='entrada'?'Recebimento':'Gasto');
+            const data = dataInput.value || hoje;
+            
+            const nova = {
+                id: Date.now() + '' + Math.floor(Math.random()*1000),
+                tipo, valor, categoria, descricao, data
+            };
+            transacoes.push(nova);
+            salvarNoStorage();
+            atualizarTudo();
+            valorInput.value = '';
+            descricaoInput.value = '';
+            dataInput.value = hoje;
+        }
+
+        // ---------- EXPORTAÇÃO ----------
+        function exportarExcel() {
+            const dados = transacoes.map(t => ({
+                Data: new Date(t.data+'T12:00:00').toLocaleDateString('pt-BR'),
+                Tipo: t.tipo === 'entrada' ? 'Entrada' : 'Saída',
+                Categoria: t.categoria,
+                Descrição: t.descricao,
+                Valor: t.valor
+            }));
+            const ws = XLSX.utils.json_to_sheet(dados);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Finanças");
+            XLSX.writeFile(wb, `financas_${new Date().toISOString().slice(0,10)}.xlsx`);
+        }
+
+        function exportarPDF() {
+            window.print(); // fallback elegante
+        }
+
+        // ---------- MODO ESCURO ----------
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark');
+            const icon = themeToggle.querySelector('i');
+            if (document.body.classList.contains('dark')) {
+                icon.classList.remove('fa-moon'); icon.classList.add('fa-sun');
+            } else {
+                icon.classList.remove('fa-sun'); icon.classList.add('fa-moon');
+            }
+            localStorage.setItem('financas_pro_dark', document.body.classList.contains('dark'));
+        }
+
+        // ---------- INICIALIZAÇÃO ----------
+        function init() {
+            carregarStorage();
+            atualizarTudo();
+            btnSalvar.addEventListener('click', adicionarTransacao);
+            definirMetaBtn.addEventListener('click', ()=>{
+                const val = parseFloat(metaInput.value);
+                if (!isNaN(val) && val>=0) { metaEconomia = val; salvarNoStorage(); atualizarTudo(); }
+                else alert('Meta inválida');
+            });
+            setLimiteBtn.addEventListener('click', ()=>{
+                const val = parseFloat(limiteGastoInput.value);
+                limiteGastos = (!isNaN(val) && val>=0) ? val : Infinity;
+                salvarNoStorage();
+                gerarInsights();
+            });
+            themeToggle.addEventListener('click', toggleDarkMode);
+            document.getElementById('exportExcelBtn').addEventListener('click', exportarExcel);
+            document.getElementById('exportPdfBtn').addEventListener('click', exportarPDF);
+            
+            if (localStorage.getItem('financas_pro_dark') === 'true') {
+                document.body.classList.add('dark');
+                themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+            }
+        }
+        init();
+    })();
+</script>
+</body>
+</html>
